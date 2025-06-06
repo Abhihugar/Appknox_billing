@@ -1,0 +1,99 @@
+version: "3"
+
+services:
+  db:
+    restart: unless-stopped
+    image: postgres:13
+    container_name: appknox_db
+    volumes:
+      - ./appknox_data/db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DEFAULT_DATABASE_DB}
+      - POSTGRES_USER=${DEFAULT_DATABASE_USER}
+      - POSTGRES_PASSWORD=${DEFAULT_DATABASE_PASSWORD}
+    env_file:
+      - .env
+    ports:
+      - "${DEFAULT_DATABASE_PORT}:5432"
+
+  web:
+    container_name: appknox_server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: bash -c 'alembic upgrade head && python -m app.initial_data && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload'
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    restart: on-failure
+    env_file:
+      - .env
+    depends_on:
+      - db
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  celery:
+    container_name: celery
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.celery_worker worker --loglevel=info
+    volumes:
+      - ./app:/build/app
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - POSTGRES_DB=${DEFAULT_DATABASE_DB}
+      - POSTGRES_USER=${DEFAULT_DATABASE_USER}
+      - POSTGRES_PASSWORD=${DEFAULT_DATABASE_PASSWORD}
+    depends_on:
+      - db
+      - redis
+
+  celery-beat:
+    container_name: celery_beat
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.celery_worker beat --loglevel=info
+    volumes:
+      - ./app:/build/app
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - POSTGRES_DB=${DEFAULT_DATABASE_DB}
+      - POSTGRES_USER=${DEFAULT_DATABASE_USER}
+      - POSTGRES_PASSWORD=${DEFAULT_DATABASE_PASSWORD}
+    depends_on:
+      - db
+      - redis
+      - celery
+
+  flower:
+    container_name: flower
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.celery_worker.celery_app flower --port=5555
+    ports:
+      - "5556:5555"
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - POSTGRES_DB=${DEFAULT_DATABASE_DB}
+      - POSTGRES_USER=${DEFAULT_DATABASE_USER}
+      - POSTGRES_PASSWORD=${DEFAULT_DATABASE_PASSWORD}
+    depends_on:
+      - db
+      - redis
+      - celery
+
+volumes:
+  redis-data:

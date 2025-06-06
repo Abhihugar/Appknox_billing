@@ -132,9 +132,12 @@ celerybeat.pid
 .venv
 env/
 venv/
+venvs/
+appknox_data/
 ENV/
 env.bak/
 venv.bak/
+vevn/
 
 # Spyder project settings
 .spyderproject
