@@ -48,7 +48,7 @@ def task_pre_run_signal_handler(task_id, task, args, kwargs, **extra):
 
 # Generate the invoice for active subscriptions
 celery_app.conf.beat_schedule = {
-    "create-event-on-missing-time": {
+    "generate_invoice": {
         "task": "app.cron_jobs.invoice.check_active_sub_and_generate_invoice",
         "schedule": crontab(minute="*/1"),  # Runs every minute
     },

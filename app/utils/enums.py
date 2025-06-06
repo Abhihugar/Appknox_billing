@@ -17,3 +17,9 @@ class InvoiceStatus(Enum):
     unpaid = "unpaid"
     paid = "paid"
     overdue = "overdue"
+    
+    
+class PaymentStatus(Enum):
+    PENDING = "pending"
+    SUCCESS = "success"
+    FAILED = "failed"

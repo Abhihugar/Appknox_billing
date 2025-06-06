@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, date
 from app.models import Plan, Subscription, User, Invoice
 from app.core.security import get_current_user
 from app.db import get_session
-from app.utils.enums import PlanEnum
+from app.utils.enums import PlanEnum, PaymentStatus
 
 from zoneinfo import ZoneInfo
 
@@ -135,6 +135,7 @@ async def unsubscribe(
 
 @router.put("/payment")
 async def payment(
+    status: PaymentStatus,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -159,9 +160,15 @@ async def payment(
 
         # Update invoice status if found
         if invoice:
-            invoice.status = "paid"
+            if status == PaymentStatus.SUCCESS:
+                invoice.status = "paid"
+                invoice.issue_date = date.today()
+            elif status == PaymentStatus.PENDING:
+                invoice.status = "overdue"
+            else:
+                invoice.status = "upaid"
             invoice.issue_date = date.today()
-
+        existing_subscription.status = "active"
         await session.commit()
 
         return {"message": "Payment successful"}
